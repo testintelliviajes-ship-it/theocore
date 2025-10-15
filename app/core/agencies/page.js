@@ -1,51 +1,60 @@
 "use client";
 import { useState } from "react";
 
-interface Brand {
+interface Agency {
   name: string;
-  slogan: string;
-  base_country: string;
+  country: string;
   domain: string;
-  color_scheme: string;
+  currency: string;
+  address: string;
+  type: string;
   status: string;
-  logo_url: string;
 }
 
-export default function BrandsPage() {
-  const [brands, setBrands] = useState<Brand[]>([
+export default function AgenciesPage() {
+  const [agencies, setAgencies] = useState<Agency[]>([
     {
-      name: "IntelliViajes",
-      slogan: "Inteligencia para viajar mejor",
-      base_country: "España",
-      domain: "intelliviajes.com",
-      color_scheme: "indigo",
+      name: "IVI Spain",
+      country: "España",
+      domain: "ivi.es",
+      currency: "EUR",
+      address: "Calle Mayor 101, Madrid",
+      type: "Sucursal",
       status: "Activo",
-      logo_url: "https://placehold.co/100x40?text=IVI",
+    },
+    {
+      name: "Waiki Perú",
+      country: "Perú",
+      domain: "waiki.pe",
+      currency: "PEN, USD",
+      address: "Av. Larco 250, Lima",
+      type: "Franquicia",
+      status: "Activo",
     },
   ]);
 
   const [formVisible, setFormVisible] = useState(false);
-  const [formData, setFormData] = useState<Brand>({
+  const [formData, setFormData] = useState<Agency>({
     name: "",
-    slogan: "",
-    base_country: "",
+    country: "",
     domain: "",
-    color_scheme: "indigo",
+    currency: "",
+    address: "",
+    type: "Partner",
     status: "Activo",
-    logo_url: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setBrands([...brands, formData]);
+    setAgencies([...agencies, formData]);
     setFormData({
       name: "",
-      slogan: "",
-      base_country: "",
+      country: "",
       domain: "",
-      color_scheme: "indigo",
+      currency: "",
+      address: "",
+      type: "Partner",
       status: "Activo",
-      logo_url: "",
     });
     setFormVisible(false);
   };
@@ -54,13 +63,13 @@ export default function BrandsPage() {
     <div className="bg-white p-6 rounded-xl shadow">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-slate-700">
-          Gestión de Marcas del Ecosistema
+          Configuración de Agencias / Partners
         </h2>
         <button
           onClick={() => setFormVisible(!formVisible)}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
         >
-          {formVisible ? "Cancelar" : "➕ Nueva Marca"}
+          {formVisible ? "Cancelar" : "➕ Nueva Agencia"}
         </button>
       </div>
 
@@ -71,7 +80,7 @@ export default function BrandsPage() {
         >
           <input
             type="text"
-            placeholder="Nombre de la marca"
+            placeholder="Nombre de la agencia"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="p-2 border rounded"
@@ -79,53 +88,52 @@ export default function BrandsPage() {
           />
           <input
             type="text"
-            placeholder="País base"
-            value={formData.base_country}
+            placeholder="País"
+            value={formData.country}
             onChange={(e) =>
-              setFormData({ ...formData, base_country: e.target.value })
+              setFormData({ ...formData, country: e.target.value })
             }
             className="p-2 border rounded"
             required
           />
           <input
             type="text"
-            placeholder="Dominio principal"
+            placeholder="Dominio (ej: waiki.pe)"
             value={formData.domain}
             onChange={(e) =>
               setFormData({ ...formData, domain: e.target.value })
             }
             className="p-2 border rounded"
+            required
           />
           <input
             type="text"
-            placeholder="URL del logo"
-            value={formData.logo_url}
+            placeholder="Monedas (ej: USD, EUR)"
+            value={formData.currency}
             onChange={(e) =>
-              setFormData({ ...formData, logo_url: e.target.value })
+              setFormData({ ...formData, currency: e.target.value })
             }
             className="p-2 border rounded"
           />
           <input
             type="text"
-            placeholder="Eslogan"
-            value={formData.slogan}
+            placeholder="Dirección"
+            value={formData.address}
             onChange={(e) =>
-              setFormData({ ...formData, slogan: e.target.value })
+              setFormData({ ...formData, address: e.target.value })
             }
             className="p-2 border rounded col-span-2"
           />
           <select
-            value={formData.color_scheme}
+            value={formData.type}
             onChange={(e) =>
-              setFormData({ ...formData, color_scheme: e.target.value })
+              setFormData({ ...formData, type: e.target.value })
             }
             className="p-2 border rounded"
           >
-            <option>indigo</option>
-            <option>blue</option>
-            <option>emerald</option>
-            <option>rose</option>
-            <option>amber</option>
+            <option>Partner</option>
+            <option>Sucursal</option>
+            <option>Franquicia</option>
           </select>
           <select
             value={formData.status}
@@ -141,7 +149,7 @@ export default function BrandsPage() {
             type="submit"
             className="md:col-span-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg"
           >
-            Guardar Marca
+            Guardar Agencia
           </button>
         </form>
       )}
@@ -149,39 +157,28 @@ export default function BrandsPage() {
       <table className="w-full text-sm text-left border">
         <thead className="bg-slate-100 border-b text-slate-600">
           <tr>
-            <th className="py-2 px-3">Logo</th>
-            <th>Nombre</th>
-            <th>País base</th>
+            <th className="py-2 px-3">Nombre</th>
+            <th>País</th>
             <th>Dominio</th>
-            <th>Color</th>
+            <th>Monedas</th>
+            <th>Tipo</th>
             <th>Estado</th>
           </tr>
         </thead>
         <tbody>
-          {brands.map((b, i) => (
+          {agencies.map((a, i) => (
             <tr key={i} className="border-b hover:bg-slate-50">
-              <td className="py-2 px-3">
-                {b.logo_url ? (
-                  <img src={b.logo_url} alt={b.name} className="h-6" />
-                ) : (
-                  <span className="text-slate-400 italic">Sin logo</span>
-                )}
-              </td>
-              <td className="font-medium">{b.name}</td>
-              <td>{b.base_country}</td>
-              <td>{b.domain}</td>
-              <td>
-                <span
-                  className={`inline-block w-4 h-4 rounded-full bg-${b.color_scheme}-500`}
-                ></span>{" "}
-                {b.color_scheme}
-              </td>
+              <td className="py-2 px-3 font-medium">{a.name}</td>
+              <td>{a.country}</td>
+              <td>{a.domain}</td>
+              <td>{a.currency}</td>
+              <td>{a.type}</td>
               <td
                 className={`font-semibold ${
-                  b.status === "Activo" ? "text-green-600" : "text-red-500"
+                  a.status === "Activo" ? "text-green-600" : "text-red-500"
                 }`}
               >
-                {b.status}
+                {a.status}
               </td>
             </tr>
           ))}
