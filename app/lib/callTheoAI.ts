@@ -1,4 +1,4 @@
-import { supabase } from "../supabaseClient";
+import { supabase } from "./supabaseClient";
 
 export async function callTheoAI(brandId: string, prompt: string) {
   // 1️⃣ Obtener configuración IA desde Supabase
