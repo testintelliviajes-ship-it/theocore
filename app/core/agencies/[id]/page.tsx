@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/app/lib/supabaseClient";
+import { supabase } from "../../../lib/supabaseClient";
 
 interface Agency { id:string; name:string; country:string; domain:string; currency:string|null; address:string|null; type:string; status:string; brand_id:string; owner_id:string|null; }
 interface Settings { assistant_name:string; personality:string; main_language:string; api_key:string|null; }
