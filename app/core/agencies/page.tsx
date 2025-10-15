@@ -1,316 +1,295 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { supabase } from "../../lib/supabaseClient";
 
-// Configura Supabase Client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-interface Brand {
+type AgencyRow = {
   id: string;
   name: string;
-}
-
-interface AgencyForm {
-  name: string;
-  country: string;
-  domain: string;
-  currency: string;
-  address: string;
-  type: string;
-  status: string;
-  brand_id: string;
-  email: string;
-  createUser: boolean;
-  assistantName: string;
-  personality: string;
-  mainLanguage: string;
-  apiKey: string;
-}
+  country: string | null;
+  domain: string | null;
+  email: string | null;
+  phone: string | null;
+  currency: string | null;
+  status: "Activo" | "Inactivo";
+  logo_url: string | null; // logo corporativo
+  brand: {
+    id: string;
+    name: string;
+    domain: string | null;
+    country: string | null;
+    status: "Activo" | "Inactivo";
+    logo_url: string | null; // logo de IA
+  } | null;
+};
 
 export default function AgenciesPage() {
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [formVisible, setFormVisible] = useState(false);
+  const [agencies, setAgencies] = useState<AgencyRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<AgencyForm>({
-    name: "",
-    country: "",
-    domain: "",
-    currency: "",
-    address: "",
-    type: "Partner",
-    status: "Activo",
-    brand_id: "",
-    email: "",
-    createUser: true,
-    assistantName: "Theo",
-    personality: "Profesional, empático y experto en viajes",
-    mainLanguage: "es",
-    apiKey: "",
-  });
-
-  // 🔹 Cargar marcas desde Supabase
   useEffect(() => {
-    const fetchBrands = async () => {
-      const { data, error } = await supabase
-        .from("core_brands")
-        .select("id, name")
-        .order("name");
-      if (!error && data) setBrands(data);
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      setMsg(null);
+      try {
+        const { data, error } = await supabase.from("core_agencies").select(`
+          id,
+          name,
+          country,
+          domain,
+          email,
+          phone,
+          currency,
+          status,
+          logo_url,
+          core_brands (
+            id,
+            name,
+            domain,
+            country,
+            status,
+            logo_url
+          )
+        `);
+        if (error) throw error;
+
+        if (mounted && data) {
+          const mapped = data.map((a: any) => ({
+            ...a,
+            brand: a.core_brands ? { ...a.core_brands } : null,
+          }));
+          setAgencies(mapped);
+        }
+      } catch (err: any) {
+        console.error(err);
+        setMsg(`❌ Error al cargar agencias: ${err.message}`);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
     };
-    fetchBrands();
   }, []);
 
-  // 🔹 Generar contraseña aleatoria (para el nuevo usuario)
-  const generatePassword = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-    return Array.from({ length: 10 }, () =>
-      chars[Math.floor(Math.random() * chars.length)]
-    ).join("");
-  };
-
-  // 🔹 Manejar envío del formulario
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-
+  const toggleStatus = async (agency: AgencyRow) => {
+    const newStatus = agency.status === "Activo" ? "Inactivo" : "Activo";
     try {
-      let userId: string | null = null;
-
-      // 1️⃣ Crear usuario si está marcado
-      if (formData.createUser && formData.email) {
-        const password = generatePassword();
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password,
-        });
-
-        if (authError) throw authError;
-        userId = authData.user?.id || null;
-
-        console.log("✅ Usuario creado:", formData.email, "(contraseña temporal:", password, ")");
-      }
-
-      // 2️⃣ Crear agencia
-      const { data: agencyData, error: agencyError } = await supabase
+      await supabase
         .from("core_agencies")
-        .insert([
-          {
-            name: formData.name,
-            country: formData.country,
-            domain: formData.domain,
-            currency: formData.currency,
-            address: formData.address,
-            type: formData.type,
-            status: formData.status,
-            brand_id: formData.brand_id,
-            owner_id: userId,
-          },
-        ])
-        .select()
-        .single();
+        .update({ status: newStatus })
+        .eq("id", agency.id);
 
-      if (agencyError) throw agencyError;
-
-      // 3️⃣ Crear configuración IA
-      const { error: settingsError } = await supabase
-        .from("core_agency_settings")
-        .insert([
-          {
-            agency_id: agencyData.id,
-            assistant_name: formData.assistantName,
-            personality: formData.personality,
-            main_language: formData.mainLanguage,
-            api_key: formData.apiKey,
-          },
-        ]);
-
-      if (settingsError) throw settingsError;
-
-      // 4️⃣ Crear relación usuario ↔ agencia
-      if (userId) {
-        const { error: relationError } = await supabase
-          .from("core_agency_users")
-          .insert([
-            {
-              agency_id: agencyData.id,
-              user_id: userId,
-              role: "admin",
-            },
-          ]);
-        if (relationError) throw relationError;
+      if (agency.brand) {
+        await supabase
+          .from("core_brands")
+          .update({ status: newStatus })
+          .eq("id", agency.brand.id);
       }
 
-      setMessage("✅ Agencia creada exitosamente.");
-      setFormVisible(false);
-      setFormData({
-        name: "",
-        country: "",
-        domain: "",
-        currency: "",
-        address: "",
-        type: "Partner",
-        status: "Activo",
-        brand_id: "",
-        email: "",
-        createUser: true,
-        assistantName: "Theo",
-        personality: "Profesional, empático y experto en viajes",
-        mainLanguage: "es",
-        apiKey: "",
-      });
-    } catch (error: any) {
-      console.error(error);
-      setMessage(`❌ Error: ${error.message}`);
-    } finally {
-      setLoading(false);
+      setMsg(
+        newStatus === "Activo"
+          ? `✅ Agencia ${agency.name} reactivada.`
+          : `⚠️ Agencia ${agency.name} suspendida.`
+      );
+      setAgencies((prev) =>
+        prev.map((a) =>
+          a.id === agency.id ? { ...a, status: newStatus } : a
+        )
+      );
+    } catch (err: any) {
+      setMsg(`❌ Error al cambiar estado: ${err.message}`);
     }
   };
 
+  const deleteAgency = async (agency: AgencyRow) => {
+    const confirm1 = confirm(`¿Seguro que deseas eliminar "${agency.name}"?`);
+    if (!confirm1) return;
+    const confirm2 = confirm(
+      `⚠️ Esto eliminará también su configuración IA y vínculo de marca. ¿Confirmas eliminación definitiva?`
+    );
+    if (!confirm2) return;
+
+    try {
+      const { error } = await supabase
+        .from("core_agencies")
+        .delete()
+        .eq("id", agency.id);
+      if (error) throw error;
+
+      setAgencies((prev) => prev.filter((a) => a.id !== agency.id));
+      setMsg(`🗑️ Agencia ${agency.name} eliminada correctamente.`);
+    } catch (err: any) {
+      setMsg(`❌ Error al eliminar agencia: ${err.message}`);
+    }
+  };
+
+  if (loading) return <div className="p-6">Cargando agencias...</div>;
+
   return (
-    <div className="bg-white p-6 rounded-xl shadow">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-slate-700">
-          Crear nueva Agencia / Partner
+    <div className="p-6 space-y-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold text-slate-800">
+          🏢 Agencias operativas
         </h2>
-        <button
-          onClick={() => setFormVisible(!formVisible)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+        <Link
+          href="/core/agencies/new"
+          className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800"
         >
-          {formVisible ? "Cancelar" : "➕ Nueva Agencia"}
-        </button>
+          + Nueva agencia
+        </Link>
       </div>
 
-      {message && (
+      {msg && (
         <div
-          className={`mb-4 p-3 rounded text-sm ${
-            message.startsWith("✅")
+          className={`p-3 rounded text-sm ${
+            msg.startsWith("✅") || msg.startsWith("🗑️")
               ? "bg-green-100 text-green-700"
+              : msg.startsWith("⚠️")
+              ? "bg-amber-100 text-amber-700"
               : "bg-red-100 text-red-700"
           }`}
         >
-          {message}
+          {msg}
         </div>
       )}
 
-      {formVisible && (
-        <form
-          onSubmit={handleSubmit}
-          className="grid gap-4 mb-6 md:grid-cols-2 border p-4 rounded-lg bg-slate-50"
-        >
-          <select
-            value={formData.brand_id}
-            onChange={(e) =>
-              setFormData({ ...formData, brand_id: e.target.value })
-            }
-            className="p-2 border rounded"
-            required
-          >
-            <option value="">Selecciona una marca</option>
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-100 text-slate-700 text-left">
+            <tr>
+              <th className="p-3">Agencia</th>
+              <th className="p-3">Marca asociada</th>
+              <th className="p-3">País</th>
+              <th className="p-3">Dominio</th>
+              <th className="p-3">Estado</th>
+              <th className="p-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {agencies.map((agency) => (
+              <tr
+                key={agency.id}
+                className="border-b last:border-none hover:bg-slate-50 transition"
+              >
+                {/* Columna Agencia */}
+                <td className="p-3 flex items-center gap-3">
+                  <img
+                    src={agency.logo_url || "/placeholder-agency.png"}
+                    alt="logo agencia"
+                    className="w-10 h-10 rounded-md border"
+                  />
+                  <div>
+                    <div className="font-medium text-slate-800">
+                      {agency.name}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {agency.currency || "—"} ·{" "}
+                      {agency.status === "Activo"
+                        ? "Operativa"
+                        : "Suspendida"}
+                    </div>
+                  </div>
+                </td>
+
+                {/* Columna Marca */}
+                <td className="p-3">
+                  {agency.brand ? (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={agency.brand.logo_url || "/placeholder-brand.png"}
+                        alt="logo marca"
+                        className="w-8 h-8 rounded-full border"
+                      />
+                      <div>
+                        <div className="font-medium text-slate-800">
+                          {agency.brand.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {agency.brand.country || "—"}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-slate-400 italic">
+                      Sin marca asociada
+                    </span>
+                  )}
+                </td>
+
+                {/* País */}
+                <td className="p-3">{agency.country || "—"}</td>
+
+                {/* Dominio */}
+                <td className="p-3 text-slate-600">{agency.domain || "—"}</td>
+
+                {/* Estado */}
+                <td className="p-3">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      agency.status === "Activo"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {agency.status}
+                  </span>
+                </td>
+
+                {/* Acciones */}
+                <td className="p-3 text-right space-x-2">
+                  <Link
+                    href={`/core/agencies/${agency.id}`}
+                    className="text-slate-700 hover:text-slate-900 font-medium"
+                  >
+                    Editar agencia
+                  </Link>
+
+                  {agency.brand ? (
+                    <Link
+                      href={`/core/brands/${agency.brand.id}`}
+                      className="text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      Ver marca
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/core/brands/new?agency=${agency.id}`}
+                      className="text-emerald-600 hover:text-emerald-800 font-medium"
+                    >
+                      Crear marca
+                    </Link>
+                  )}
+
+                  <button
+                    onClick={() => toggleStatus(agency)}
+                    className="text-amber-600 hover:text-amber-800 font-medium"
+                  >
+                    {agency.status === "Activo" ? "Suspender" : "Activar"}
+                  </button>
+
+                  <button
+                    onClick={() => deleteAgency(agency)}
+                    className="text-red-600 hover:text-red-800 font-medium"
+                  >
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
             ))}
-          </select>
-
-          <input
-            type="text"
-            placeholder="Nombre de la agencia"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="p-2 border rounded"
-            required
-          />
-
-          <input
-            type="text"
-            placeholder="País"
-            value={formData.country}
-            onChange={(e) =>
-              setFormData({ ...formData, country: e.target.value })
-            }
-            className="p-2 border rounded"
-            required
-          />
-
-          <input
-            type="text"
-            placeholder="Dominio (ej: waiki.pe)"
-            value={formData.domain}
-            onChange={(e) =>
-              setFormData({ ...formData, domain: e.target.value })
-            }
-            className="p-2 border rounded"
-            required
-          />
-
-          <input
-            type="email"
-            placeholder="Email administrador"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            className="p-2 border rounded"
-            required
-          />
-
-          <label className="flex items-center gap-2 col-span-2">
-            <input
-              type="checkbox"
-              checked={formData.createUser}
-              onChange={(e) =>
-                setFormData({ ...formData, createUser: e.target.checked })
-              }
-            />
-            Crear usuario administrador automáticamente
-          </label>
-
-          <input
-            type="text"
-            placeholder="Monedas (USD, EUR)"
-            value={formData.currency}
-            onChange={(e) =>
-              setFormData({ ...formData, currency: e.target.value })
-            }
-            className="p-2 border rounded"
-          />
-
-          <input
-            type="text"
-            placeholder="Dirección"
-            value={formData.address}
-            onChange={(e) =>
-              setFormData({ ...formData, address: e.target.value })
-            }
-            className="p-2 border rounded col-span-2"
-          />
-
-          <textarea
-            placeholder="Personalidad del asistente IA"
-            value={formData.personality}
-            onChange={(e) =>
-              setFormData({ ...formData, personality: e.target.value })
-            }
-            className="p-2 border rounded col-span-2 h-20"
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="md:col-span-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg disabled:opacity-50"
-          >
-            {loading ? "Guardando..." : "Guardar Agencia"}
-          </button>
-        </form>
-      )}
+            {agencies.length === 0 && (
+              <tr>
+                <td colSpan={6} className="p-6 text-center text-slate-400">
+                  No hay agencias registradas todavía.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

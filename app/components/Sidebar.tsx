@@ -1,33 +1,84 @@
 "use client";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
 
-const links = [
-  { href: "/core", label: "Dashboard" },
-  { href: "/core/state", label: "Estado" },
-  { href: "/core/brands", label: "Marcas" },
-  { href: "/core/agencies", label: "Agencias" },
-  { href: "/core/settings", label: "Configuración" },
-];
+import Link from "next/link";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [ecoOpen, setEcoOpen] = useState(true);
+
+  const linkClass = (path: string) =>
+    `block px-4 py-2 rounded-md transition ${
+      pathname.startsWith(path)
+        ? "bg-slate-800 text-white"
+        : "text-slate-700 hover:bg-slate-100"
+    }`;
+
   return (
-    <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col">
-      <div className="px-6 py-4 text-xl font-bold tracking-wide border-b border-slate-800">
-        Theo Core
-      </div>
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        {links.map(link => (
-          <Link key={link.href} href={link.href}
-            className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-slate-800 transition ${
-              pathname === link.href ? "bg-slate-800" : ""}`}>
-            {link.label}
+    <aside className="w-64 h-screen border-r border-slate-200 bg-white flex flex-col justify-between">
+      {/* Header */}
+      <div>
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h1 className="text-lg font-semibold text-slate-900">
+            🧠 Theo Core
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">Panel de control IA</p>
+        </div>
+
+        {/* Main Nav */}
+        <nav className="px-3 py-4 space-y-2">
+          <Link href="/core/dashboard" className={linkClass("/core/dashboard")}>
+            📊 Dashboard
           </Link>
-        ))}
-      </nav>
-      <div className="px-6 py-4 border-t border-slate-800 text-xs text-slate-500">
-        v1.1.0
+
+          {/* Grupo Ecosistema */}
+          <div>
+            <button
+              onClick={() => setEcoOpen(!ecoOpen)}
+              className="w-full flex items-center justify-between px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-md"
+            >
+              <span>🌍 Ecosistema</span>
+              <span className="text-xs">
+                {ecoOpen ? "▾" : "▸"}
+              </span>
+            </button>
+
+            {ecoOpen && (
+              <div className="ml-4 mt-1 space-y-1">
+                <Link
+                  href="/core/brands"
+                  className={linkClass("/core/brands")}
+                >
+                  🌐 Marcas (IA)
+                </Link>
+                <Link
+                  href="/core/agencies"
+                  className={linkClass("/core/agencies")}
+                >
+                  🏢 Agencias
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <Link href="/core/state" className={linkClass("/core/state")}>
+            🧩 Estado del sistema
+          </Link>
+          <Link href="/core/ai-status" className={linkClass("/core/ai-status")}>
+            🤖 Theo IA
+          </Link>
+
+          <Link href="/core/settings" className={linkClass("/core/settings")}>
+            ⚙️ Configuración
+          </Link>
+        </nav>
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-500">
+        © {new Date().getFullYear()} Theo Core<br />
+        <span className="text-slate-400">IA Ecosystem Management</span>
       </div>
     </aside>
   );
