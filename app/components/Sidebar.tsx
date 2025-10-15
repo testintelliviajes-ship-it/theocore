@@ -58,6 +58,9 @@ export default function Sidebar() {
                 >
                   🏢 Agencias
                 </Link>
+                <Link href="/core/network" className={linkClass("/core/network")}>
+                  🌍 Red de Marcas
+                </Link>
               </div>
             )}
           </div>
