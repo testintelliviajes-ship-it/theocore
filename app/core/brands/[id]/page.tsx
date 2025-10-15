@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "@/app/lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 interface Brand { id:string; name:string; base_country:string; domain:string|null; status:string; color_scheme:string; }
 interface Agency { id:string; name:string; country:string; domain:string; status:string; type:string; main_language?:string; }

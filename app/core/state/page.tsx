@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabase } from "@/app/lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function CoreStatePage() {
   const [counts, setCounts] = useState({ brands:0, agencies:0, users:0 });
