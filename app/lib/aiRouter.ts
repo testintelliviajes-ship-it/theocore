@@ -18,10 +18,10 @@ export async function aiRouter({
       );
       const gemini = genAI.getGenerativeModel({ model });
 
-      // Adaptador de stream manual (no usa 'ai')
+      // 🧠 Adaptador de roles
       const result = await gemini.generateContentStream({
         contents: messages.map((m) => ({
-          role: m.role,
+          role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }],
         })),
       });
