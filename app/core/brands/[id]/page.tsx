@@ -271,8 +271,19 @@ export default function BrandDetailPage() {
       onClick={async () => {
         setMsg("⌛ Consultando modelo...");
         try {
-          const { callTheoAI } = await import("../../../lib/aiRouter");
-          const res = await callTheoAI(id as string, aiConfig.testPrompt);
+          const res = await fetch("/api/core/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [{ role: "user", content: aiConfig.testPrompt }],
+            provider: "google",
+            model: "gemini-2.5-flash",
+            brandId: id,
+          }),
+        });
+
+        const text = await res.text();
+        setMsg(`✅ Respuesta: ${text}`);
           setMsg(`✅ Respuesta: ${res}`);
         } catch (err: any) {
           setMsg(`❌ Error: ${err.message}`);
