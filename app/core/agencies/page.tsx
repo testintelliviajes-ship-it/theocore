@@ -1,295 +1,250 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { supabase } from "../../lib/supabaseClient";
-
-type AgencyRow = {
-  id: string;
-  name: string;
-  country: string | null;
-  domain: string | null;
-  email: string | null;
-  phone: string | null;
-  currency: string | null;
-  status: "Activo" | "Inactivo";
-  logo_url: string | null; // logo corporativo
-  brand: {
-    id: string;
-    name: string;
-    domain: string | null;
-    country: string | null;
-    status: "Activo" | "Inactivo";
-    logo_url: string | null; // logo de IA
-  } | null;
-};
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  getAgencies,
+  createAgency,
+  toggleAgency,
+  deleteAgency,
+  updateStatus,
+  generateInvite,
+} from "./actions/agency.actions";
 
 export default function AgenciesPage() {
-  const [agencies, setAgencies] = useState<AgencyRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [agencies, setAgencies] = useState<any[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteLink, setInviteLink] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    country: "",
+    domain: "",
+    brand_id: "",
+    logo_url: "",
+  });
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      setMsg(null);
-      try {
-        const { data, error } = await supabase.from("core_agencies").select(`
-          id,
-          name,
-          country,
-          domain,
-          email,
-          phone,
-          currency,
-          status,
-          logo_url,
-          core_brands (
-            id,
-            name,
-            domain,
-            country,
-            status,
-            logo_url
-          )
-        `);
-        if (error) throw error;
-
-        if (mounted && data) {
-          const mapped = data.map((a: any) => ({
-            ...a,
-            brand: a.core_brands ? { ...a.core_brands } : null,
-          }));
-          setAgencies(mapped);
-        }
-      } catch (err: any) {
-        console.error(err);
-        setMsg(`❌ Error al cargar agencias: ${err.message}`);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    loadAgencies();
   }, []);
 
-  const toggleStatus = async (agency: AgencyRow) => {
-    const newStatus = agency.status === "Activo" ? "Inactivo" : "Activo";
-    try {
-      await supabase
-        .from("core_agencies")
-        .update({ status: newStatus })
-        .eq("id", agency.id);
+  const loadAgencies = async () => {
+    const res = await getAgencies();
+    setAgencies(res || []);
+  };
 
-      if (agency.brand) {
-        await supabase
-          .from("core_brands")
-          .update({ status: newStatus })
-          .eq("id", agency.brand.id);
-      }
+  const handleCreate = async () => {
+    await createAgency(form);
+    setShowModal(false);
+    setForm({ name: "", email: "", country: "", domain: "", brand_id: "", logo_url: "" });
+    await loadAgencies();
+  };
 
-      setMsg(
-        newStatus === "Activo"
-          ? `✅ Agencia ${agency.name} reactivada.`
-          : `⚠️ Agencia ${agency.name} suspendida.`
-      );
-      setAgencies((prev) =>
-        prev.map((a) =>
-          a.id === agency.id ? { ...a, status: newStatus } : a
-        )
-      );
-    } catch (err: any) {
-      setMsg(`❌ Error al cambiar estado: ${err.message}`);
+  const handleToggle = async (id: string, current: boolean) => {
+    await toggleAgency(id, !current);
+    await loadAgencies();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("¿Eliminar agencia?")) {
+      await deleteAgency(id);
+      await loadAgencies();
     }
   };
 
-  const deleteAgency = async (agency: AgencyRow) => {
-    const confirm1 = confirm(`¿Seguro que deseas eliminar "${agency.name}"?`);
-    if (!confirm1) return;
-    const confirm2 = confirm(
-      `⚠️ Esto eliminará también su configuración IA y vínculo de marca. ¿Confirmas eliminación definitiva?`
-    );
-    if (!confirm2) return;
-
-    try {
-      const { error } = await supabase
-        .from("core_agencies")
-        .delete()
-        .eq("id", agency.id);
-      if (error) throw error;
-
-      setAgencies((prev) => prev.filter((a) => a.id !== agency.id));
-      setMsg(`🗑️ Agencia ${agency.name} eliminada correctamente.`);
-    } catch (err: any) {
-      setMsg(`❌ Error al eliminar agencia: ${err.message}`);
-    }
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    await updateStatus(id, newStatus);
+    await loadAgencies();
   };
 
-  if (loading) return <div className="p-6">Cargando agencias...</div>;
+  const handleInvite = async (id: string) => {
+    const url = await generateInvite(id);
+    setInviteLink(url);
+    setShowInviteModal(true);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(inviteLink);
+  };
+
+  const statusColors: any = {
+    Invitada: "bg-yellow-100 text-yellow-700 border-yellow-300",
+    Pendiente: "bg-orange-100 text-orange-700 border-orange-300",
+    Activa: "bg-green-100 text-green-700 border-green-300",
+    Suspendida: "bg-red-100 text-red-700 border-red-300",
+  };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold text-slate-800">
-          🏢 Agencias operativas
-        </h2>
-        <Link
-          href="/core/agencies/new"
-          className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800"
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-extrabold text-gray-800">🌍 Agencias</h1>
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl shadow-md transition"
         >
-          + Nueva agencia
-        </Link>
+          + Nueva Agencia
+        </button>
       </div>
 
-      {msg && (
-        <div
-          className={`p-3 rounded text-sm ${
-            msg.startsWith("✅") || msg.startsWith("🗑️")
-              ? "bg-green-100 text-green-700"
-              : msg.startsWith("⚠️")
-              ? "bg-amber-100 text-amber-700"
-              : "bg-red-100 text-red-700"
-          }`}
-        >
-          {msg}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {agencies.map((a, index) => (
+          <motion.div
+            key={a.id}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="bg-white rounded-2xl shadow-md hover:shadow-xl p-5 border border-gray-100 transition"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              {a.logo_url ? (
+                <img src={a.logo_url} alt={a.name} className="w-12 h-12 rounded-full border" />
+              ) : (
+                <div className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-100 text-xl">🏢</div>
+              )}
+              <div>
+                <h2 className="font-bold text-lg text-gray-800">{a.name}</h2>
+                <p className="text-sm text-gray-500">{a.country}</p>
+              </div>
+            </div>
+
+            <p className="text-gray-600 text-sm mb-1"><strong>Email:</strong> {a.email}</p>
+            <p className="text-gray-600 text-sm mb-1"><strong>Dominio:</strong> {a.domain}</p>
+            <p className="text-gray-600 text-sm mb-1"><strong>Brand:</strong> {a.brand_name || "—"}</p>
+
+            <div className="mt-3 mb-2 flex items-center justify-between">
+              <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${statusColors[a.status]}`}>
+                {a.status}
+              </span>
+              <motion.select
+                whileHover={{ scale: 1.05 }}
+                className="text-sm border rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                value={a.status}
+                onChange={(e) => handleStatusChange(a.id, e.target.value)}
+              >
+                <option>Invitada</option>
+                <option>Pendiente</option>
+                <option>Activa</option>
+                <option>Suspendida</option>
+              </motion.select>
+            </div>
+
+            {/* Botones */}
+            <div className="flex justify-between items-center mt-4">
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={a.is_active}
+                  onChange={() => handleToggle(a.id, a.is_active)}
+                />
+                <div className="relative w-10 h-5 bg-gray-300 peer-checked:bg-green-500 rounded-full transition-all">
+                  <span className="absolute left-1 top-1 bg-white w-3 h-3 rounded-full peer-checked:translate-x-5 transition-all"></span>
+                </div>
+                <span className="ml-2 text-sm text-gray-700">
+                  {a.is_active ? "Activo" : "Inactivo"}
+                </span>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleInvite(a.id)}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold"
+                >
+                  🔗 Invitar
+                </button>
+                <button
+                  onClick={() => handleDelete(a.id)}
+                  className="text-red-500 hover:text-red-700 text-sm font-semibold"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* MODAL INVITACIÓN */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+          >
+            <h3 className="text-xl font-bold mb-3 text-gray-800">
+              🔗 Enlace de invitación
+            </h3>
+            <p className="text-gray-600 text-sm mb-4">
+              Copia este enlace y envíalo a la agencia para completar su registro.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={inviteLink}
+                className="w-full border px-3 py-2 rounded-lg text-sm bg-gray-50"
+              />
+              <button
+                onClick={copyToClipboard}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm"
+              >
+                Copiar
+              </button>
+            </div>
+
+            <div className="flex justify-end mt-5">
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cerrar
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-slate-700 text-left">
-            <tr>
-              <th className="p-3">Agencia</th>
-              <th className="p-3">Marca asociada</th>
-              <th className="p-3">País</th>
-              <th className="p-3">Dominio</th>
-              <th className="p-3">Estado</th>
-              <th className="p-3 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agencies.map((agency) => (
-              <tr
-                key={agency.id}
-                className="border-b last:border-none hover:bg-slate-50 transition"
-              >
-                {/* Columna Agencia */}
-                <td className="p-3 flex items-center gap-3">
-                  <img
-                    src={agency.logo_url || "/placeholder-agency.png"}
-                    alt="logo agencia"
-                    className="w-10 h-10 rounded-md border"
+      {/* MODAL CREAR */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+          >
+            <h3 className="text-xl font-bold mb-4 text-gray-800">🆕 Nueva Agencia</h3>
+            <div className="space-y-3">
+              {["name", "email", "country", "domain", "brand_id", "logo_url"].map((field) => (
+                <div key={field}>
+                  <label className="block text-sm font-medium text-gray-600 capitalize">
+                    {field.replace("_", " ")}
+                  </label>
+                  <input
+                    type="text"
+                    value={(form as any)[field]}
+                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
                   />
-                  <div>
-                    <div className="font-medium text-slate-800">
-                      {agency.name}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {agency.currency || "—"} ·{" "}
-                      {agency.status === "Activo"
-                        ? "Operativa"
-                        : "Suspendida"}
-                    </div>
-                  </div>
-                </td>
-
-                {/* Columna Marca */}
-                <td className="p-3">
-                  {agency.brand ? (
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={agency.brand.logo_url || "/placeholder-brand.png"}
-                        alt="logo marca"
-                        className="w-8 h-8 rounded-full border"
-                      />
-                      <div>
-                        <div className="font-medium text-slate-800">
-                          {agency.brand.name}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {agency.brand.country || "—"}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-slate-400 italic">
-                      Sin marca asociada
-                    </span>
-                  )}
-                </td>
-
-                {/* País */}
-                <td className="p-3">{agency.country || "—"}</td>
-
-                {/* Dominio */}
-                <td className="p-3 text-slate-600">{agency.domain || "—"}</td>
-
-                {/* Estado */}
-                <td className="p-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      agency.status === "Activo"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {agency.status}
-                  </span>
-                </td>
-
-                {/* Acciones */}
-                <td className="p-3 text-right space-x-2">
-                  <Link
-                    href={`/core/agencies/${agency.id}`}
-                    className="text-slate-700 hover:text-slate-900 font-medium"
-                  >
-                    Editar agencia
-                  </Link>
-
-                  {agency.brand ? (
-                    <Link
-                      href={`/core/brands/${agency.brand.id}`}
-                      className="text-indigo-600 hover:text-indigo-800 font-medium"
-                    >
-                      Ver marca
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/core/brands/new?agency=${agency.id}`}
-                      className="text-emerald-600 hover:text-emerald-800 font-medium"
-                    >
-                      Crear marca
-                    </Link>
-                  )}
-
-                  <button
-                    onClick={() => toggleStatus(agency)}
-                    className="text-amber-600 hover:text-amber-800 font-medium"
-                  >
-                    {agency.status === "Activo" ? "Suspender" : "Activar"}
-                  </button>
-
-                  <button
-                    onClick={() => deleteAgency(agency)}
-                    className="text-red-600 hover:text-red-800 font-medium"
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {agencies.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-6 text-center text-slate-400">
-                  No hay agencias registradas todavía.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreate}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+              >
+                Guardar
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
