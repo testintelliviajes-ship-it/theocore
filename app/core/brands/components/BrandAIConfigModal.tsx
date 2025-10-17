@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { saveAIConfig } from "../actions/aiConfig.actions";
-import BrandAITestModal from "./BrandAITestModal";
+
 
 export default function BrandAIConfigModal({ isOpen, onClose, brand, onSaved }: any) {
   const [providers, setProviders] = useState<string[]>([]);
