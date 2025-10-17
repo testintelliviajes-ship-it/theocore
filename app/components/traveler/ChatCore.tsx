@@ -7,7 +7,11 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 export default function ChatCore() {
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "¡Hola! Soy Theo, tu asistente de viajes 🌍 ¿Dónde te gustaría comenzar?" },
+    {
+      role: "assistant",
+      content:
+        "¡Hola! Soy Theo, tu asistente de viajes 🌍 ¿Dónde te gustaría comenzar?",
+    },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,39 +23,43 @@ export default function ChatCore() {
 
   async function send() {
     if (!input.trim()) return;
+
     const userMsg: Msg = { role: "user", content: input.trim() };
     setMessages((m) => [...m, userMsg]);
     setInput("");
     setLoading(true);
 
     try {
+      // ✅ Llamada directa al endpoint que usa Gemini 2.5-flash
       const res = await fetch("/api/core/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg] }),
+        body: JSON.stringify({
+          messages: [...messages, userMsg],
+          // brand_id se ignora, pero lo dejamos por compatibilidad
+          brand_id: "traveler-mode",
+        }),
       });
 
-      if (!res.body) throw new Error("No stream body");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let aiText = "";
-      setMessages((m) => [...m, { role: "assistant", content: "" }]);
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        aiText += decoder.decode(value, { stream: true });
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = { role: "assistant", content: aiText };
-          return copy;
-        });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Error al conectar con Gemini");
       }
-    } catch (e) {
-      console.error(e);
+
+      // 🔸 En esta versión no hay streaming real: se recibe todo el texto final
+      const json = await res.json();
+      const aiText = json.output || "Sin respuesta de Gemini";
+
+      setMessages((m) => [...m, { role: "assistant", content: aiText }]);
+    } catch (e: any) {
+      console.error("⚠️ Error ChatCore:", e);
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: "⚠️ Error al conectar con Theo Core." },
+        {
+          role: "assistant",
+          content:
+            "⚠️ No pude conectar con Theo Core (Gemini). Revisa tu clave API en .env.local.",
+        },
       ]);
     } finally {
       setLoading(false);
@@ -60,6 +68,7 @@ export default function ChatCore() {
 
   return (
     <div className="flex flex-col h-[70vh]">
+      {/* Mensajes */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         {messages.map((m, i) => (
           <motion.div
@@ -75,10 +84,13 @@ export default function ChatCore() {
             {m.content}
           </motion.div>
         ))}
-        {loading && <div className="text-sm text-slate-500">Theo está pensando…</div>}
+        {loading && (
+          <div className="text-sm text-slate-500">Theo está pensando…</div>
+        )}
         <div ref={endRef} />
       </div>
 
+      {/* Input */}
       <div className="mt-3 flex gap-2">
         <input
           className="flex-1 border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
