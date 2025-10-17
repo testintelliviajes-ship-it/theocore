@@ -215,18 +215,7 @@ export default function BrandAIConfigModal({ isOpen, onClose, brand, onSaved }: 
         </div>
 
         {/* 🔹 Modal de testeo IA */}
-        {testing && (
-          <BrandAITestModal
-            isOpen={testing}
-            onClose={() => setTesting(false)}
-            brand={{
-              id: brand.id,
-              model_id: selectedModel,
-              api_key: apiKey,
-              name: brand.name,
-            }}
-          />
-        )}
+       
       </div>
     </div>
   );
