@@ -1,14 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import {
-  getAgencies,
-  createAgency,
-  toggleAgency,
-  deleteAgency,
-  updateStatus,
-  generateInvite,
-} from "./lib/agency.client";
 
 export default function AgenciesPage() {
   const [agencies, setAgencies] = useState<any[]>([]);
@@ -24,48 +16,64 @@ export default function AgenciesPage() {
     logo_url: "",
   });
 
+  // === LOAD AGENCIES ===
+  const loadAgencies = async () => {
+    const res = await fetch("/api/core/agencies");
+    const data = await res.json();
+    setAgencies(data);
+  };
+
   useEffect(() => {
     loadAgencies();
   }, []);
 
-  const loadAgencies = async () => {
-    const res = await getAgencies();
-    setAgencies(res || []);
-  };
-
   const handleCreate = async () => {
-    await createAgency(form);
+    await fetch("/api/core/agencies", {
+      method: "POST",
+      body: JSON.stringify(form),
+    });
     setShowModal(false);
     setForm({ name: "", email: "", country: "", domain: "", brand_id: "", logo_url: "" });
     await loadAgencies();
   };
 
   const handleToggle = async (id: string, current: boolean) => {
-    await toggleAgency(id, !current);
+    await fetch("/api/core/agencies", {
+      method: "PATCH",
+      body: JSON.stringify({ id, data: { is_active: !current } }),
+    });
     await loadAgencies();
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("¿Eliminar agencia?")) {
-      await deleteAgency(id);
+      await fetch("/api/core/agencies", {
+        method: "DELETE",
+        body: JSON.stringify({ id }),
+      });
       await loadAgencies();
     }
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    await updateStatus(id, newStatus);
+    await fetch("/api/core/agencies", {
+      method: "PATCH",
+      body: JSON.stringify({ id, data: { status: newStatus } }),
+    });
     await loadAgencies();
   };
 
   const handleInvite = async (id: string) => {
-    const url = await generateInvite(id);
-    setInviteLink(url);
+    const res = await fetch("/api/core/agencies", {
+      method: "PUT",
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    setInviteLink(data.inviteUrl);
     setShowInviteModal(true);
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(inviteLink);
-  };
+  const copyToClipboard = () => navigator.clipboard.writeText(inviteLink);
 
   const statusColors: any = {
     Invitada: "bg-yellow-100 text-yellow-700 border-yellow-300",
@@ -88,12 +96,12 @@ export default function AgenciesPage() {
 
       {/* === LISTADO === */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {agencies.map((a, index) => (
+        {agencies.map((a, i) => (
           <motion.div
             key={a.id}
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
+            transition={{ delay: i * 0.05 }}
             className="bg-white rounded-2xl shadow-md hover:shadow-xl p-5 border border-gray-100 transition"
           >
             <div className="flex items-center gap-3 mb-4">
@@ -129,7 +137,6 @@ export default function AgenciesPage() {
               </motion.select>
             </div>
 
-            {/* Botones */}
             <div className="flex justify-between items-center mt-4">
               <label className="inline-flex items-center cursor-pointer">
                 <input
@@ -192,55 +199,12 @@ export default function AgenciesPage() {
                 Copiar
               </button>
             </div>
-
             <div className="flex justify-end mt-5">
               <button
                 onClick={() => setShowInviteModal(false)}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 Cerrar
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* === MODAL CREAR === */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
-          >
-            <h3 className="text-xl font-bold mb-4 text-gray-800">🆕 Nueva Agencia</h3>
-            <div className="space-y-3">
-              {["name", "email", "country", "domain", "brand_id", "logo_url"].map((field) => (
-                <div key={field}>
-                  <label className="block text-sm font-medium text-gray-600 capitalize">
-                    {field.replace("_", " ")}
-                  </label>
-                  <input
-                    type="text"
-                    value={(form as any)[field]}
-                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreate}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-              >
-                Guardar
               </button>
             </div>
           </motion.div>
