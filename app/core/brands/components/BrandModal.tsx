@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../../../lib/supabaseClient";
+import { supabase } from "../lib/supabaseClient";
 
 const aiModels = [
   { label: "Gemini 2.5 Flash (Google)", value: "gemini-2.5-flash", provider: "google" },
@@ -10,6 +10,7 @@ const aiModels = [
 
 export default function BrandModal({ open, onClose, brand, reload }: any) {
   const [form, setForm] = useState({
+    brand_name: "",
     domain: "",
     provider: "google",
     model_code: "gemini-2.5-flash",
@@ -28,12 +29,9 @@ export default function BrandModal({ open, onClose, brand, reload }: any) {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     const { error } = brand
-      ? await supabase.from("core_ai_config").update(form).eq("id", brand.id)
-      : await supabase.from("core_ai_config").insert({
-          brand_id: crypto.randomUUID(),
-          ...form,
-          is_active: true,
-        });
+      ? await supabase.from("core_brands").update(form).eq("id", brand.id)
+      : await supabase.from("core_brands").insert(form);
+
     if (error) alert(error.message);
     else {
       onClose();
@@ -61,6 +59,17 @@ export default function BrandModal({ open, onClose, brand, reload }: any) {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold">Nombre de la Marca</label>
+                <input
+                  name="brand_name"
+                  value={form.brand_name}
+                  onChange={handleChange}
+                  className="w-full mt-1 p-2 border rounded-md bg-neutral-50 dark:bg-neutral-800"
+                  placeholder="Ej: Waiki Perú"
+                />
+              </div>
+
               <div>
                 <label className="text-sm font-semibold">Dominio</label>
                 <input
@@ -96,14 +105,14 @@ export default function BrandModal({ open, onClose, brand, reload }: any) {
               </div>
 
               <div>
-                <label className="text-sm font-semibold">Prompt / Personalidad</label>
+                <label className="text-sm font-semibold">Personalidad del Asistente</label>
                 <textarea
                   name="personality_prompt"
                   value={form.personality_prompt}
                   onChange={handleChange}
                   className="w-full mt-1 p-2 border rounded-md bg-neutral-50 dark:bg-neutral-800"
                   rows={4}
-                  placeholder="Describe el tono, el estilo y el rol del asistente..."
+                  placeholder="Ej: Eres Waiki, un guía turístico alegre que ayuda a planificar aventuras..."
                 />
               </div>
 

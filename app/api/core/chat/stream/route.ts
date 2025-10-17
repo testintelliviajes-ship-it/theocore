@@ -1,66 +1,64 @@
-// app/api/core/chat/stream/route.ts
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: Request) {
   try {
-    const { messages, prompt, brand_id } = await req.json();
+    const { domain, prompt } = await req.json();
 
-    // 🔹 Construimos el texto final (acepta prompt o messages)
-    const finalPrompt =
-      prompt ||
-      (Array.isArray(messages)
-        ? messages.map((m: any) => `${m.role}: ${m.content}`).join("\n")
-        : "");
+    if (!domain) throw new Error("Dominio obligatorio");
+    if (!prompt) throw new Error("Prompt vacío");
 
-    if (!finalPrompt)
-      return NextResponse.json(
-        { error: "prompt o messages son obligatorios" },
-        { status: 400 }
-      );
+    const { data: brand, error } = await supabase
+      .from("core_brands")
+      .select("*")
+      .eq("domain", domain)
+      .eq("is_active", true)
+      .single();
 
-    // 🔹 Usa la API key directamente desde .env.local
+    if (error || !brand) throw new Error("Configuración de marca no encontrada");
 
-  const apiKey =
-  process.env.GEMINI_API_KEY ||
-  process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
-  process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-    if (!apiKey)
-      return NextResponse.json(
-        { error: "Falta GEMINI_API_KEY en el entorno" },
-        { status: 500 }
-      );
+    const systemPrompt = brand.personality_prompt;
+    const finalPrompt = `${systemPrompt}\n\nUsuario: ${prompt}`;
 
-    // 🔹 Petición directa a Gemini 2.5-flash
-    const model = "gemini-2.5-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: finalPrompt }] }],
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error("❌ Error Gemini:", data);
-      return NextResponse.json(
-        { error: data.error?.message || "Error en la API de Gemini" },
-        { status: 500 }
-      );
+    if (brand.provider === "google") {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${brand.model_code}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] }),
+      });
+      const json = await res.json();
+      const output =
+        json?.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta (Gemini)";
+      return NextResponse.json({ output });
     }
 
-    const output =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta";
+    if (brand.provider === "openai") {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: brand.model_code,
+          messages: [{ role: "user", content: finalPrompt }],
+          temperature: 0.7,
+        }),
+      });
+      const json = await res.json();
+      const output = json?.choices?.[0]?.message?.content || "Sin respuesta (GPT-5)";
+      return NextResponse.json({ output });
+    }
 
-    return NextResponse.json({ output }, { status: 200 });
+    throw new Error(`Proveedor no soportado: ${brand.provider}`);
   } catch (error: any) {
-    console.error("⚠️ Error general en /api/core/chat/stream:", error);
-    return NextResponse.json(
-      { error: error.message || "Error interno en Theo Core" },
-      { status: 500 }
-    );
+    console.error("⚠️ Error Theo Core Handler:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

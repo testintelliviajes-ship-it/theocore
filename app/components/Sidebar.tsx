@@ -58,9 +58,7 @@ export default function Sidebar() {
                 >
                   🏢 Agencias
                 </Link>
-                <Link href="/core/network" className={linkClass("/core/network")}>
-                  🌍 Red de Marcas
-                </Link>
+                
               </div>
             )}
           </div>
@@ -68,9 +66,7 @@ export default function Sidebar() {
           <Link href="/core/state" className={linkClass("/core/state")}>
             🧩 Estado del sistema
           </Link>
-          <Link href="/core/ai-status" className={linkClass("/core/ai-status")}>
-            🤖 Theo IA
-          </Link>
+         
 
           <Link href="/core/settings" className={linkClass("/core/settings")}>
             ⚙️ Configuración
