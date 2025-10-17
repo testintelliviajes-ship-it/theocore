@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
-import ChatCore from "@/app/components/traveler/ChatCore";
+import ChatCore from "../components/traveler/ChatCore";
+
 
 export default function TravelerHome() {
   const [openChat, setOpenChat] = useState(false);

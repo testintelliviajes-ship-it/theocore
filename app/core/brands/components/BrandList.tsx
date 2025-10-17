@@ -13,7 +13,10 @@ export default function BrandList() {
 
   const loadBrands = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("core_brands").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("core_brands")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (error) console.error("❌ Error al cargar marcas:", error);
     setBrands(data || []);
     setLoading(false);
@@ -45,10 +48,7 @@ export default function BrandList() {
           No hay marcas configuradas aún.
         </div>
       ) : (
-        <motion.div
-          layout
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"
-        >
+        <motion.div layout className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {brands.map((brand) => (
             <BrandCard
               key={brand.id}
@@ -57,6 +57,7 @@ export default function BrandList() {
                 setSelectedBrand(b);
                 setShowModal(true);
               }}
+              reload={loadBrands}
             />
           ))}
         </motion.div>
