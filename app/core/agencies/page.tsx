@@ -27,19 +27,37 @@ export default function AgenciesPage() {
     loadAgencies();
   }, []);
 
+  // === CREATE AGENCY ===
   const handleCreate = async () => {
-    await fetch("/api/core/agencies", {
-      method: "POST",
-      body: JSON.stringify(form),
-    });
-    setShowModal(false);
-    setForm({ name: "", email: "", country: "", domain: "", brand_id: "", logo_url: "" });
-    await loadAgencies();
+    try {
+      const res = await fetch("/api/core/agencies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error("Error al crear la agencia");
+
+      setShowModal(false);
+      setForm({
+        name: "",
+        email: "",
+        country: "",
+        domain: "",
+        brand_id: "",
+        logo_url: "",
+      });
+      await loadAgencies();
+    } catch (error) {
+      console.error(error);
+      alert("❌ No se pudo crear la agencia");
+    }
   };
 
   const handleToggle = async (id: string, current: boolean) => {
     await fetch("/api/core/agencies", {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, data: { is_active: !current } }),
     });
     await loadAgencies();
@@ -49,6 +67,7 @@ export default function AgenciesPage() {
     if (confirm("¿Eliminar agencia?")) {
       await fetch("/api/core/agencies", {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
       await loadAgencies();
@@ -58,6 +77,7 @@ export default function AgenciesPage() {
   const handleStatusChange = async (id: string, newStatus: string) => {
     await fetch("/api/core/agencies", {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, data: { status: newStatus } }),
     });
     await loadAgencies();
@@ -66,6 +86,7 @@ export default function AgenciesPage() {
   const handleInvite = async (id: string) => {
     const res = await fetch("/api/core/agencies", {
       method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
     const data = await res.json();
@@ -205,6 +226,48 @@ export default function AgenciesPage() {
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 Cerrar
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* === MODAL CREAR AGENCIA === */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+          >
+            <h3 className="text-xl font-bold mb-4 text-gray-800">🆕 Nueva Agencia</h3>
+            <div className="space-y-3">
+              {["name", "email", "country", "domain", "brand_id", "logo_url"].map((field) => (
+                <div key={field}>
+                  <label className="block text-sm font-medium text-gray-600 capitalize">
+                    {field.replace("_", " ")}
+                  </label>
+                  <input
+                    type="text"
+                    value={(form as any)[field]}
+                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreate}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+              >
+                Guardar
               </button>
             </div>
           </motion.div>
