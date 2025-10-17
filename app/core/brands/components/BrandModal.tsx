@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../../../lib/supabaseClient";
 
 const aiModels = [
   { label: "Gemini 2.5 Flash (Google)", value: "gemini-2.5-flash", provider: "google" },
