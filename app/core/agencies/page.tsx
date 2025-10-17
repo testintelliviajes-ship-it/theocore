@@ -8,7 +8,7 @@ import {
   deleteAgency,
   updateStatus,
   generateInvite,
-} from "./actions/agency.actions";
+} from "./lib/agency.client";
 
 export default function AgenciesPage() {
   const [agencies, setAgencies] = useState<any[]>([]);
@@ -86,6 +86,7 @@ export default function AgenciesPage() {
         </button>
       </div>
 
+      {/* === LISTADO === */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {agencies.map((a, index) => (
           <motion.div
@@ -164,7 +165,7 @@ export default function AgenciesPage() {
         ))}
       </div>
 
-      {/* MODAL INVITACIÓN */}
+      {/* === MODAL INVITACIÓN === */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <motion.div
@@ -204,7 +205,7 @@ export default function AgenciesPage() {
         </div>
       )}
 
-      {/* MODAL CREAR */}
+      {/* === MODAL CREAR === */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <motion.div

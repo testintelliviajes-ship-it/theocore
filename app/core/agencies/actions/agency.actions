@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 );
 
 export async function getAgencies() {
@@ -52,7 +52,6 @@ export async function deleteAgency(id: string) {
   if (error) throw error;
 }
 
-// 🆕 Generar invitación
 export async function generateInvite(id: string) {
   const token = randomUUID();
   const inviteUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/agency/invite?token=${token}`;
